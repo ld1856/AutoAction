@@ -1,7 +1,9 @@
 package com.autoaction.service
 
+import android.accessibilityservice.GestureDescription
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.graphics.Path
 import android.graphics.PixelFormat
 import android.os.IBinder
 import android.view.Gravity
@@ -97,11 +99,8 @@ class RecordingService : OverlayService() {
                 downY = event.rawY
                 downTime = System.currentTimeMillis()
                 isGestureInProgress = true
-
-                dispatchPassthroughGesture(event)
             }
             MotionEvent.ACTION_MOVE -> {
-                dispatchPassthroughGesture(event)
             }
             MotionEvent.ACTION_UP -> {
                 if (!isGestureInProgress) return
@@ -125,7 +124,7 @@ class RecordingService : OverlayService() {
 
                 updateActionCount()
 
-                dispatchPassthroughGesture(event)
+                dispatchPassthroughGesture(action, downX, downY, upX, upY, duration)
             }
         }
     }
@@ -188,11 +187,50 @@ class RecordingService : OverlayService() {
         return sqrt(dx * dx + dy * dy)
     }
 
-    private fun dispatchPassthroughGesture(event: MotionEvent) {
-        scope.launch(Dispatchers.Main) {
+    private fun dispatchPassthroughGesture(
+        action: Action,
+        startX: Float,
+        startY: Float,
+        endX: Float,
+        endY: Float,
+        duration: Long
+    ) {
+        scope.launch(Dispatchers.IO) {
             try {
-                val service = AutoActionService.getInstance()
-                if (service != null) {
+                val service = AutoActionService.getInstance() ?: return@launch
+
+                val gesture = when (action.type) {
+                    ActionType.CLICK -> {
+                        val path = Path().apply {
+                            moveTo(startX, startY)
+                        }
+                        GestureDescription.Builder()
+                            .addStroke(GestureDescription.StrokeDescription(path, 0, 50))
+                            .build()
+                    }
+                    ActionType.LONG_PRESS -> {
+                        val path = Path().apply {
+                            moveTo(startX, startY)
+                        }
+                        GestureDescription.Builder()
+                            .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
+                            .build()
+                    }
+                    ActionType.SWIPE -> {
+                        val path = Path().apply {
+                            moveTo(startX, startY)
+                            lineTo(endX, endY)
+                        }
+                        val swipeDuration = duration.coerceIn(100, 2000)
+                        GestureDescription.Builder()
+                            .addStroke(GestureDescription.StrokeDescription(path, 0, swipeDuration))
+                            .build()
+                    }
+                    else -> null
+                }
+
+                gesture?.let {
+                    service.dispatchGesture(it, null, null)
                 }
             } catch (e: Exception) {
             }

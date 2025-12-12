@@ -93,6 +93,10 @@ cd app/
 - `ShortcutConfig`: Floating button appearance (icon, position, alpha, scale)
 - `ActionType`: Enum defining supported gesture primitives
 
+**Settings Layer** (`data/settings/`)
+- `GlobalSettings`: Data class for app-wide randomization parameters
+- `SettingsRepository`: DataStore-backed persistence for global settings
+
 **Repository** (`ScriptRepository.kt`)
 - Abstracts database access
 - Provides `enabledScripts` Flow for observing active shortcuts
@@ -102,11 +106,13 @@ cd app/
 **Compose Screens** (`ui/screen/`)
 - `ScriptListScreen`: Main list with accessibility service status indicator
 - `ScriptEditorScreen`: Visual action sequence editor with drag-to-reorder
+- `SettingsScreen`: Global randomization and anti-detection settings
 
 **Navigation** (`ui/navigation/NavGraph.kt`)
-- Simple Compose Navigation with two routes:
+- Simple Compose Navigation with three routes:
   - `script_list` (home)
   - `script_editor/{scriptId}` (create/edit)
+  - `settings` (global settings)
 
 **ViewBinding Fragments** (legacy, in `ui/home/`, `ui/dashboard/`, etc.)
 - Older XML-based fragments for settings/notifications
@@ -121,15 +127,22 @@ The original design coupled clicks with delays (`baseDelay` field). **v2.0 refac
 
 This enables advanced patterns like "continuous taps without pause" or "hold button indefinitely."
 
-#### Randomization System (Anti-Detection)
-**Global settings** (stored in DataStore/SharedPreferences - planned):
-- `randomization_enabled`: Master toggle
-- `click_offset_radius`: ±N pixels from target coordinates
-- `delay_variance`: ±N milliseconds from base duration
+#### Randomization System (Anti-Detection) - v2.0 Implementation
+**Global settings** (stored in DataStore via `SettingsRepository`):
+- `randomization_enabled`: Master toggle (default: false)
+- `click_offset_radius`: ±N pixels from target coordinates (default: 10px, range: 0-50)
+- `click_duration_variance`: ±N milliseconds for click/swipe duration (default: 50ms, range: 0-200)
+- `delay_variance`: ±N milliseconds for delay actions (default: 100ms, range: 0-1000)
+- `haptic_feedback_enabled`: Vibration feedback toggle (default: true)
 
-**Variance is bidirectional (±)**: A setting of 78ms means random value in [-78, +78].
+**Three-tier override hierarchy**:
+1. **Global settings**: App-wide defaults from `SettingsRepository`
+2. **Script-level settings**: `Script.globalRandomOffset` and `Script.globalRandomDelay` override global values
+3. **Action-level overrides**: `Action.overrideRandomOffset` and `Action.overrideRandomDelay` override both
 
-**Action-level overrides**: Each `Action` can specify `overrideRandomOffset` or `overrideRandomDelay` to supersede global values.
+**Variance is bidirectional (±)**: A setting of 78ms means random value in `[-78, +78]`.
+
+**Execution flow**: `GestureExecutor` receives `GlobalSettings` from `ScriptExecutor`, applies randomization only when `randomization_enabled == true`, using `coerceAtLeast()` to ensure script/action overrides respect global minimums.
 
 #### Floating Window Touch Logic
 **Shortcut buttons** (`ScriptShortcutContent`):
@@ -146,9 +159,16 @@ This enables advanced patterns like "continuous taps without pause" or "hold but
 ### Adding a New Action Type
 1. Add enum value to `ActionType.kt`
 2. Update `Action` data class with required parameters
-3. Modify `GestureExecutor.kt` to handle new gesture dispatch
-4. Update `ScriptEditorScreen.kt` UI to expose new action type
-5. Add migration logic if changing database schema
+3. Modify `GestureExecutor.kt` to handle new gesture dispatch:
+   - Add case in `executeAction()` when block
+   - Implement execution function (e.g., `executeCustomAction()`)
+   - Apply randomization if needed
+4. Update `ScriptEditorScreen.kt` UI:
+   - Add menu item in FAB dropdown with icon
+   - Add editing UI in `ActionCard` when block
+   - Update action preview text in card summary
+5. Update `RecordingService.kt` if action should be recordable
+6. Add database migration if changing `Action` schema
 
 ### Modifying Script Execution Logic
 - **Entry point**: `AutoActionService.executeScript(scriptId)`
@@ -177,9 +197,36 @@ Essential runtime permissions (must guide users to grant):
 3. **View hierarchy dependency**: Some advanced features (like "tap element by text") require parsing accessibility node tree, not yet implemented
 4. **No root features**: Cannot simulate hardware keys (volume, power) or bypass secure screens
 
+## Recent Major Changes (v2.0 Upgrade)
+
+**Completed on 2023-12-12** - Full v2.0 atomic action refactoring:
+
+### What Changed
+1. **Global Settings Module**: Added DataStore-backed `SettingsRepository` with UI in `SettingsScreen`
+2. **Atomic Action Model**: Deprecated `Action.baseDelay` in favor of separate `DELAY` actions
+3. **Script Editor Enhancements**:
+   - FAB now opens dropdown menu for CLICK/SWIPE/DELAY
+   - Removed baseDelay from CLICK editor
+   - Added complete SWIPE parameter editor (startX/Y, endX/Y, duration)
+   - Renamed DELAY label to "Wait Duration" for clarity
+4. **Randomization Improvements**: Three-tier override system (global → script → action)
+
+### Migration Notes
+- Old scripts with `baseDelay != 0` still work but show deprecation warnings
+- To convert: manually split into `Action(type=CLICK, duration=X)` + `Action(type=DELAY, duration=Y)`
+- Recording service automatically creates DELAY actions between gestures
+
 ## Design Documents Reference
 
 See `docs/` directory for detailed specifications:
 - `requirements.md`: Original PRD with macro mode requirements
 - `design_v2_refinement.md`: Atomic action model and global settings design
-- `ui_design.md`: (if exists) Screen wireframes and interaction flows
+- `ui_design.md`: Screen wireframes and interaction flows
+
+## Development Guidelines
+
+### When Working on This Codebase
+1. **Respect the atomic action model**: Never add `baseDelay` logic to new code
+2. **Test randomization**: Always test with `randomization_enabled = true` to verify variance application
+3. **Preserve floating window positions**: Ensure any changes to `FloatingWindowService` maintain the 40px drag threshold
+4. **Use descriptive action labels**: When creating actions programmatically, set meaningful `desc` values for debugging

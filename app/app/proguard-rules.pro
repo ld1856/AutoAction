@@ -14,8 +14,26 @@
 
 # Uncomment this to preserve the line number information for
 # debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+-keepattributes SourceFile,LineNumberTable
 
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# --- AutoAction Specific Rules ---
+
+# Keep Data Models for Gson Serialization/Deserialization
+-keep class com.autoaction.data.model.** { *; }
+-keep class com.autoaction.data.local.** { *; }
+
+# Keep Gson internals
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class com.google.gson.** { *; }
+-keep class sun.misc.Unsafe { *; }
+
+# Keep Room Database entities (redundant with above local.** but good for clarity)
+-keep class androidx.room.** { *; }
+
+# Keep Lifecycle components if necessary (usually handled by R8, but for safety in Services)
+-keep class androidx.lifecycle.** { *; }

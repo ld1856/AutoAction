@@ -3,6 +3,7 @@ package com.autoaction.data.settings
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -19,6 +20,8 @@ class SettingsRepository(private val context: Context) {
         private val CLICK_DURATION_VARIANCE = longPreferencesKey("click_duration_variance")
         private val DELAY_VARIANCE = longPreferencesKey("delay_variance")
         private val HAPTIC_FEEDBACK_ENABLED = booleanPreferencesKey("haptic_feedback_enabled")
+        private val CONTROL_BAR_ALPHA = floatPreferencesKey("control_bar_alpha")
+        private val SHORTCUT_ALPHA = floatPreferencesKey("shortcut_alpha")
     }
 
     val settings: Flow<GlobalSettings> = context.dataStore.data.map { preferences ->
@@ -27,7 +30,9 @@ class SettingsRepository(private val context: Context) {
             clickOffsetRadius = preferences[CLICK_OFFSET_RADIUS] ?: 10,
             clickDurationVariance = preferences[CLICK_DURATION_VARIANCE] ?: 50,
             delayVariance = preferences[DELAY_VARIANCE] ?: 100,
-            hapticFeedbackEnabled = preferences[HAPTIC_FEEDBACK_ENABLED] ?: true
+            hapticFeedbackEnabled = preferences[HAPTIC_FEEDBACK_ENABLED] ?: true,
+            controlBarAlpha = preferences[CONTROL_BAR_ALPHA] ?: 0.9f,
+            shortcutAlpha = preferences[SHORTCUT_ALPHA] ?: 0.8f
         )
     }
 
@@ -58,6 +63,18 @@ class SettingsRepository(private val context: Context) {
     suspend fun updateHapticFeedbackEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[HAPTIC_FEEDBACK_ENABLED] = enabled
+        }
+    }
+
+    suspend fun updateControlBarAlpha(alpha: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[CONTROL_BAR_ALPHA] = alpha.coerceIn(0.1f, 1.0f)
+        }
+    }
+
+    suspend fun updateShortcutAlpha(alpha: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[SHORTCUT_ALPHA] = alpha.coerceIn(0.1f, 1.0f)
         }
     }
 }

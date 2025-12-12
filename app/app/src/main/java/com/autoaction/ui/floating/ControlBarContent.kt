@@ -24,7 +24,8 @@ fun ControlBarContent(
     shortcutsVisible: Boolean,
     onOpenSettings: () -> Unit,
     onExit: () -> Unit,
-    onDrag: (Float, Float) -> Unit
+    onDrag: (Float, Float) -> Unit,
+    alpha: Float = 0.9f
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -32,7 +33,7 @@ fun ControlBarContent(
         Box(
             modifier = Modifier
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = alpha))
                 .pointerInput(Unit) {
                     detectDragGestures { change, dragAmount ->
                         change.consume()

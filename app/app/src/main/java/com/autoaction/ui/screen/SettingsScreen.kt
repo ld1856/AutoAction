@@ -129,6 +129,43 @@ fun SettingsScreen(
                 )
             }
 
+            Divider()
+
+            Text(
+                text = "Appearance Settings",
+                style = MaterialTheme.typography.titleLarge
+            )
+
+            Text(
+                text = "Control Bar Opacity: ${(settings.controlBarAlpha * 100).toInt()}%",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Slider(
+                value = settings.controlBarAlpha,
+                onValueChange = { value ->
+                    scope.launch {
+                        repository.updateControlBarAlpha(value)
+                    }
+                },
+                valueRange = 0.1f..1.0f,
+                steps = 17
+            )
+
+            Text(
+                text = "Shortcut Opacity: ${(settings.shortcutAlpha * 100).toInt()}%",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Slider(
+                value = settings.shortcutAlpha,
+                onValueChange = { value ->
+                    scope.launch {
+                        repository.updateShortcutAlpha(value)
+                    }
+                },
+                valueRange = 0.1f..1.0f,
+                steps = 17
+            )
+
             Spacer(modifier = Modifier.weight(1f))
 
             Card(

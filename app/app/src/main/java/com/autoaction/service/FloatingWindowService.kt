@@ -15,6 +15,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import com.autoaction.data.local.AppDatabase
 import com.autoaction.data.repository.ScriptRepository
+import com.autoaction.data.settings.GlobalSettings
+import com.autoaction.data.settings.SettingsRepository
 import com.autoaction.ui.floating.ControlBarContent
 import com.autoaction.ui.floating.ScriptShortcutContent
 import kotlinx.coroutines.CoroutineScope
@@ -29,12 +31,13 @@ class FloatingWindowService : OverlayService() {
 
     private lateinit var windowManager: WindowManager
     private lateinit var repository: ScriptRepository
+    private lateinit var settingsRepository: SettingsRepository
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private var controlBarView: View? = null
     private val shortcutViews = mutableMapOf<String, View>()
 
-    private val _shortcutsVisible = MutableStateFlow(true) // Track global shortcut visibility
+    private val _shortcutsVisible = MutableStateFlow(true)
     val shortcutsVisible = _shortcutsVisible.asStateFlow()
 
     companion object {
@@ -58,6 +61,7 @@ class FloatingWindowService : OverlayService() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val database = AppDatabase.getDatabase(this)
         repository = ScriptRepository(database.scriptDao())
+        settingsRepository = SettingsRepository(this)
 
         createControlBar()
         observeEnabledScripts()
@@ -79,18 +83,20 @@ class FloatingWindowService : OverlayService() {
         controlBarView = ComposeView(this).apply {
             attachLifecycle(this)
             setContent {
-                val currentShortcutsVisible by shortcutsVisible.collectAsState() // Collect state here
+                val currentShortcutsVisible by shortcutsVisible.collectAsState()
+                val settings by settingsRepository.settings.collectAsState(initial = GlobalSettings())
                 ControlBarContent(
                     onStartRecording = { startRecording() },
                     onToggleShortcuts = { toggleShortcuts() },
-                    shortcutsVisible = currentShortcutsVisible, // Pass the state
+                    shortcutsVisible = currentShortcutsVisible,
                     onOpenSettings = { openMainApp() },
                     onExit = { stopSelf() },
                     onDrag = { dx, dy ->
                         params.x += dx.toInt()
                         params.y += dy.toInt()
                         windowManager.updateViewLayout(this, params)
-                    }
+                    },
+                    alpha = settings.controlBarAlpha
                 )
             }
         }
@@ -146,8 +152,10 @@ class FloatingWindowService : OverlayService() {
         val view = ComposeView(this).apply {
             attachLifecycle(this)
             setContent {
+                val settings by settingsRepository.settings.collectAsState(initial = GlobalSettings())
                 ScriptShortcutContent(
-                    script = script
+                    script = script,
+                    globalAlpha = settings.shortcutAlpha
                 )
             }
         }

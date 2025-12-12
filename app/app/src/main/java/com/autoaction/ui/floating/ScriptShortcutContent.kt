@@ -19,12 +19,13 @@ import com.autoaction.ui.theme.AutoActionTheme
 
 @Composable
 fun ScriptShortcutContent(
-    script: Script
+    script: Script,
+    globalAlpha: Float = 0.8f
 ) {
     val config = script.shortcutConfig
-    
+
     // We removed internal click handling because the parent WindowManager handles touch for drag & click.
-    // Visual feedback for "pressed" state would ideally require passing state down, 
+    // Visual feedback for "pressed" state would ideally require passing state down,
     // but for now we keep it simple to fix the drag issue.
 
     AutoActionTheme {
@@ -32,7 +33,7 @@ fun ScriptShortcutContent(
             modifier = Modifier
                 .size(60.dp)
                 .scale(config.scale)
-                .alpha(config.alpha)
+                .alpha(config.alpha * globalAlpha)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primary),
             contentAlignment = Alignment.Center

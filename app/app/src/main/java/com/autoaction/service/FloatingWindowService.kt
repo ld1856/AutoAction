@@ -85,7 +85,12 @@ class FloatingWindowService : OverlayService() {
                     onToggleShortcuts = { toggleShortcuts() },
                     shortcutsVisible = currentShortcutsVisible, // Pass the state
                     onOpenSettings = { openMainApp() },
-                    onExit = { stopSelf() }
+                    onExit = { stopSelf() },
+                    onDrag = { dx, dy ->
+                        params.x += dx.toInt()
+                        params.y += dy.toInt()
+                        windowManager.updateViewLayout(this, params)
+                    }
                 )
             }
         }

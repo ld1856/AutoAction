@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import com.autoaction.data.local.AppDatabase
 import com.autoaction.data.model.Action
@@ -21,6 +22,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.util.UUID
+import kotlin.math.abs
+import kotlin.math.sqrt
 
 class RecordingService : OverlayService() {
 
@@ -30,8 +33,21 @@ class RecordingService : OverlayService() {
 
     private var overlayView: View? = null
     private val recordedActions = mutableListOf<Action>()
-    private var lastEventTime = 0L
+    private var lastActionEndTime = 0L
     private var recordingStartTime = 0L
+
+    private var downX = 0f
+    private var downY = 0f
+    private var downTime = 0L
+    private var isGestureInProgress = false
+
+    private val actionCountState = mutableStateOf(0)
+
+    companion object {
+        private const val LONG_PRESS_THRESHOLD_MS = 500L
+        private const val MOVEMENT_THRESHOLD_PX = 40f
+        private const val MIN_DELAY_MS = 50L
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -41,7 +57,7 @@ class RecordingService : OverlayService() {
 
         createRecordingOverlay()
         recordingStartTime = System.currentTimeMillis()
-        lastEventTime = recordingStartTime
+        lastActionEndTime = recordingStartTime
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -60,7 +76,7 @@ class RecordingService : OverlayService() {
             attachLifecycle(this)
             setContent {
                 RecordingOverlayContent(
-                    actionCount = recordedActions.size,
+                    actionCount = actionCountState.value,
                     onStop = { stopRecording() },
                     onSave = { saveRecording() }
                 )
@@ -77,39 +93,114 @@ class RecordingService : OverlayService() {
     private fun handleTouchEvent(event: MotionEvent) {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                val currentTime = System.currentTimeMillis()
-                val delay = currentTime - lastEventTime
+                downX = event.rawX
+                downY = event.rawY
+                downTime = System.currentTimeMillis()
+                isGestureInProgress = true
 
-                if (recordedActions.isNotEmpty() && delay > 50) {
-                    recordedActions.add(
-                        Action(
-                            type = ActionType.DELAY,
-                            duration = delay,
-                            desc = "Auto delay"
-                        )
-                    )
-                }
+                dispatchPassthroughGesture(event)
+            }
+            MotionEvent.ACTION_MOVE -> {
+                dispatchPassthroughGesture(event)
+            }
+            MotionEvent.ACTION_UP -> {
+                if (!isGestureInProgress) return
 
-                recordedActions.add(
-                    Action(
-                        type = ActionType.CLICK,
-                        x = event.rawX.toInt(),
-                        y = event.rawY.toInt(),
-                        duration = 50,
-                        desc = "Click ${recordedActions.size + 1}"
-                    )
+                val upX = event.rawX
+                val upY = event.rawY
+                val upTime = System.currentTimeMillis()
+                val duration = upTime - downTime
+                val distance = calculateDistance(downX, downY, upX, upY)
+
+                addDelayIfNeeded(downTime)
+
+                val action = recognizeGesture(
+                    downX, downY, upX, upY,
+                    duration, distance
                 )
 
-                lastEventTime = currentTime
-                (overlayView as? ComposeView)?.setContent {
-                    RecordingOverlayContent(
-                        actionCount = recordedActions.size,
-                        onStop = { stopRecording() },
-                        onSave = { saveRecording() }
-                    )
-                }
+                recordedActions.add(action)
+                lastActionEndTime = upTime
+                isGestureInProgress = false
+
+                updateActionCount()
+
+                dispatchPassthroughGesture(event)
             }
         }
+    }
+
+    private fun addDelayIfNeeded(currentActionStartTime: Long) {
+        val delay = currentActionStartTime - lastActionEndTime
+        if (recordedActions.isNotEmpty() && delay > MIN_DELAY_MS) {
+            recordedActions.add(
+                Action(
+                    type = ActionType.DELAY,
+                    duration = delay,
+                    desc = "Auto delay ${delay}ms"
+                )
+            )
+        }
+    }
+
+    private fun recognizeGesture(
+        startX: Float, startY: Float,
+        endX: Float, endY: Float,
+        duration: Long,
+        distance: Float
+    ): Action {
+        return when {
+            distance < MOVEMENT_THRESHOLD_PX && duration >= LONG_PRESS_THRESHOLD_MS -> {
+                Action(
+                    type = ActionType.LONG_PRESS,
+                    x = startX.toInt(),
+                    y = startY.toInt(),
+                    duration = duration,
+                    desc = "Long Press (${duration}ms)"
+                )
+            }
+            distance < MOVEMENT_THRESHOLD_PX -> {
+                Action(
+                    type = ActionType.CLICK,
+                    x = startX.toInt(),
+                    y = startY.toInt(),
+                    duration = 50,
+                    desc = "Click"
+                )
+            }
+            else -> {
+                Action(
+                    type = ActionType.SWIPE,
+                    startX = startX.toInt(),
+                    startY = startY.toInt(),
+                    endX = endX.toInt(),
+                    endY = endY.toInt(),
+                    duration = duration.coerceAtLeast(100),
+                    desc = "Swipe (${distance.toInt()}px, ${duration}ms)"
+                )
+            }
+        }
+    }
+
+    private fun calculateDistance(x1: Float, y1: Float, x2: Float, y2: Float): Float {
+        val dx = x2 - x1
+        val dy = y2 - y1
+        return sqrt(dx * dx + dy * dy)
+    }
+
+    private fun dispatchPassthroughGesture(event: MotionEvent) {
+        scope.launch(Dispatchers.Main) {
+            try {
+                val service = AutoActionService.getInstance()
+                if (service != null) {
+                }
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    private fun updateActionCount() {
+        actionCountState.value = recordedActions.count { it.type != ActionType.DELAY }
     }
 
     private fun stopRecording() {

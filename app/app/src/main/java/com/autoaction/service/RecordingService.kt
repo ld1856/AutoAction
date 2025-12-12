@@ -99,6 +99,8 @@ class RecordingService : OverlayService() {
                 downY = event.rawY
                 downTime = System.currentTimeMillis()
                 isGestureInProgress = true
+
+                dispatchRealtimeClick(downX, downY, 5)
             }
             MotionEvent.ACTION_MOVE -> {
             }
@@ -124,7 +126,7 @@ class RecordingService : OverlayService() {
 
                 updateActionCount()
 
-                dispatchPassthroughGesture(action, downX, downY, upX, upY, duration)
+                dispatchPassthroughFullGesture(action, downX, downY, upX, upY, duration)
             }
         }
     }
@@ -187,7 +189,21 @@ class RecordingService : OverlayService() {
         return sqrt(dx * dx + dy * dy)
     }
 
-    private fun dispatchPassthroughGesture(
+    private fun dispatchRealtimeClick(x: Float, y: Float, duration: Long) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val service = AutoActionService.getInstance() ?: return@launch
+                val path = Path().apply { moveTo(x, y) }
+                val gesture = GestureDescription.Builder()
+                    .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
+                    .build()
+                service.dispatchGesture(gesture, null, null)
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    private fun dispatchPassthroughFullGesture(
         action: Action,
         startX: Float,
         startY: Float,
@@ -200,14 +216,6 @@ class RecordingService : OverlayService() {
                 val service = AutoActionService.getInstance() ?: return@launch
 
                 val gesture = when (action.type) {
-                    ActionType.CLICK -> {
-                        val path = Path().apply {
-                            moveTo(startX, startY)
-                        }
-                        GestureDescription.Builder()
-                            .addStroke(GestureDescription.StrokeDescription(path, 0, 50))
-                            .build()
-                    }
                     ActionType.LONG_PRESS -> {
                         val path = Path().apply {
                             moveTo(startX, startY)

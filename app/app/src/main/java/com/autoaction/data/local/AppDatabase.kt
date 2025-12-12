@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [ScriptEntity::class], version = 1, exportSchema = false)
+@Database(entities = [ScriptEntity::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun scriptDao(): ScriptDao
 
@@ -19,7 +19,8 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "autoaction_database"
-                ).build()
+                ).fallbackToDestructiveMigration() // Add this for development ease with schema changes
+                 .build()
                 INSTANCE = instance
                 instance
             }

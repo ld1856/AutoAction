@@ -16,17 +16,17 @@ class GestureExecutor(
     suspend fun executeAction(
         action: Action,
         globalSettings: GlobalSettings,
-        scriptGlobalRandomOffset: Int = 0,
-        scriptGlobalRandomDelay: Long = 0
+        scriptGlobalRandomOffset: Int? = null,
+        scriptGlobalRandomDelay: Long? = null
     ): Boolean {
         val randomOffset = if (globalSettings.randomizationEnabled) {
-            action.overrideRandomOffset ?: scriptGlobalRandomOffset.coerceAtLeast(globalSettings.clickOffsetRadius)
+            action.overrideRandomOffset ?: scriptGlobalRandomOffset ?: globalSettings.clickOffsetRadius
         } else {
             0
         }
 
         val randomDelayVariance = if (globalSettings.randomizationEnabled) {
-            action.overrideRandomDelay ?: scriptGlobalRandomDelay.coerceAtLeast(globalSettings.delayVariance)
+            action.overrideRandomDelay ?: scriptGlobalRandomDelay ?: globalSettings.delayVariance
         } else {
             0
         }

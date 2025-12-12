@@ -5,8 +5,8 @@ data class Script(
     val name: String,
     val isEnabled: Boolean = false,
     val loopCount: Int = 0,
-    val globalRandomOffset: Int = 0,
-    val globalRandomDelay: Long = 0,
+    val globalRandomOffset: Int? = null,
+    val globalRandomDelay: Long? = null,
     val shortcutConfig: ShortcutConfig = ShortcutConfig(),
     val actions: List<Action> = emptyList()
 )

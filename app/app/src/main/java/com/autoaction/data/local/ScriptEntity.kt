@@ -14,8 +14,8 @@ data class ScriptEntity(
     val name: String,
     val isEnabled: Boolean = false,
     val loopCount: Int = 0,
-    val globalRandomOffset: Int = 10,
-    val globalRandomDelay: Long = 200,
+    val globalRandomOffset: Int? = null,
+    val globalRandomDelay: Long? = null,
     val shortcutConfigJson: String,
     val actionsJson: String
 )

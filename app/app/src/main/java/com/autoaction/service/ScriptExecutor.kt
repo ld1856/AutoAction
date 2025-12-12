@@ -2,10 +2,12 @@ package com.autoaction.service
 
 import android.accessibilityservice.AccessibilityService
 import com.autoaction.data.model.Script
+import com.autoaction.data.settings.GlobalSettings
 import kotlinx.coroutines.*
 
 class ScriptExecutor(
-    private val service: AccessibilityService
+    private val service: AccessibilityService,
+    private val getGlobalSettings: suspend () -> GlobalSettings
 ) {
     private val gestureExecutor = GestureExecutor(service)
     private var currentJob: Job? = null
@@ -34,10 +36,12 @@ class ScriptExecutor(
     }
 
     private suspend fun executeScriptOnce(script: Script) {
+        val globalSettings = getGlobalSettings()
         for (action in script.actions) {
             if (!currentJob?.isActive!!) break
             gestureExecutor.executeAction(
                 action,
+                globalSettings,
                 script.globalRandomOffset,
                 script.globalRandomDelay
             )

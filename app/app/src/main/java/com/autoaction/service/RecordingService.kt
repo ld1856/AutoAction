@@ -95,7 +95,7 @@ class RecordingService : OverlayService() {
                         type = ActionType.CLICK,
                         x = event.rawX.toInt(),
                         y = event.rawY.toInt(),
-                        baseDelay = 50,
+                        duration = 50,
                         desc = "Click ${recordedActions.size + 1}"
                     )
                 )

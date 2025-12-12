@@ -9,6 +9,7 @@ data class Action(
     val endX: Int = 0,
     val endY: Int = 0,
     val duration: Long = 0,
+    @Deprecated("Use separate DELAY action instead")
     val baseDelay: Long = 0,
     val desc: String = "",
     val overrideRandomOffset: Int? = null,

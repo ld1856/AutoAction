@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.autoaction.ui.screen.ScriptEditorScreen
 import com.autoaction.ui.screen.ScriptListScreen
+import com.autoaction.ui.screen.SettingsScreen
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -20,6 +21,9 @@ fun NavGraph(navController: NavHostController) {
                     } else {
                         navController.navigate("script_editor/new")
                     }
+                },
+                onNavigateToSettings = {
+                    navController.navigate("settings")
                 }
             )
         }
@@ -30,6 +34,11 @@ fun NavGraph(navController: NavHostController) {
             val scriptId = backStackEntry.arguments?.getString("scriptId")
             ScriptEditorScreen(
                 scriptId = if (scriptId == "new") null else scriptId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable("settings") {
+            SettingsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

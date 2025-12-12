@@ -5,6 +5,7 @@ import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import com.autoaction.data.model.Action
 import com.autoaction.data.model.ActionType
+import com.autoaction.data.settings.GlobalSettings
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -14,58 +15,73 @@ class GestureExecutor(
 
     suspend fun executeAction(
         action: Action,
-        globalRandomOffset: Int,
-        globalRandomDelay: Long
+        globalSettings: GlobalSettings,
+        scriptGlobalRandomOffset: Int = 0,
+        scriptGlobalRandomDelay: Long = 0
     ): Boolean {
-        val randomOffset = action.overrideRandomOffset ?: globalRandomOffset
-        val randomDelay = action.overrideRandomDelay ?: globalRandomDelay
+        val randomOffset = if (globalSettings.randomizationEnabled) {
+            action.overrideRandomOffset ?: scriptGlobalRandomOffset.coerceAtLeast(globalSettings.clickOffsetRadius)
+        } else {
+            0
+        }
 
-        val success = when (action.type) {
-            ActionType.CLICK -> executeClick(action, randomOffset)
-            ActionType.LONG_PRESS -> executeLongPress(action, randomOffset)
-            ActionType.SWIPE -> executeSwipe(action, randomOffset)
+        val randomDelayVariance = if (globalSettings.randomizationEnabled) {
+            action.overrideRandomDelay ?: scriptGlobalRandomDelay.coerceAtLeast(globalSettings.delayVariance)
+        } else {
+            0
+        }
+
+        val randomDurationVariance = if (globalSettings.randomizationEnabled) {
+            globalSettings.clickDurationVariance
+        } else {
+            0
+        }
+
+        return when (action.type) {
+            ActionType.CLICK -> executeClick(action, randomOffset, randomDurationVariance)
+            ActionType.LONG_PRESS -> executeLongPress(action, randomOffset, randomDurationVariance)
+            ActionType.SWIPE -> executeSwipe(action, randomOffset, randomDurationVariance)
             ActionType.MULTI_TOUCH -> executeMultiTouch(action, randomOffset)
             ActionType.DELAY -> {
-                delay(action.duration + getRandomDelay(randomDelay))
+                val finalDelay = action.duration + getRandomVariance(randomDelayVariance)
+                delay(finalDelay.coerceAtLeast(0))
                 true
             }
         }
-
-        delay(action.baseDelay + getRandomDelay(randomDelay))
-        return success
     }
 
-    private fun executeClick(action: Action, randomOffset: Int): Boolean {
+    private fun executeClick(action: Action, randomOffset: Int, durationVariance: Long): Boolean {
         val (x, y) = applyRandomOffset(action.x, action.y, randomOffset)
+        val duration = (action.duration + getRandomVariance(durationVariance)).coerceAtLeast(10)
         val path = Path().apply {
             moveTo(x, y)
         }
-        val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0, 10))
-            .build()
-        return service.dispatchGesture(gesture, null, null)
-    }
-
-    private fun executeLongPress(action: Action, randomOffset: Int): Boolean {
-        val (x, y) = applyRandomOffset(action.x, action.y, randomOffset)
-        val path = Path().apply {
-            moveTo(x, y)
-        }
-        val duration = action.duration.coerceAtLeast(100)
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
             .build()
         return service.dispatchGesture(gesture, null, null)
     }
 
-    private fun executeSwipe(action: Action, randomOffset: Int): Boolean {
+    private fun executeLongPress(action: Action, randomOffset: Int, durationVariance: Long): Boolean {
+        val (x, y) = applyRandomOffset(action.x, action.y, randomOffset)
+        val duration = (action.duration + getRandomVariance(durationVariance)).coerceAtLeast(100)
+        val path = Path().apply {
+            moveTo(x, y)
+        }
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
+            .build()
+        return service.dispatchGesture(gesture, null, null)
+    }
+
+    private fun executeSwipe(action: Action, randomOffset: Int, durationVariance: Long): Boolean {
         val (startX, startY) = applyRandomOffset(action.startX, action.startY, randomOffset)
         val (endX, endY) = applyRandomOffset(action.endX, action.endY, randomOffset)
+        val duration = (action.duration + getRandomVariance(durationVariance)).coerceAtLeast(100)
         val path = Path().apply {
             moveTo(startX, startY)
             lineTo(endX, endY)
         }
-        val duration = action.duration.coerceAtLeast(100)
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
             .build()
@@ -82,8 +98,8 @@ class GestureExecutor(
         return Pair((x + dx).toFloat(), (y + dy).toFloat())
     }
 
-    private fun getRandomDelay(maxDelay: Long): Long {
-        if (maxDelay <= 0) return 0
-        return Random.nextLong(-maxDelay / 2, maxDelay / 2 + 1)
+    private fun getRandomVariance(variance: Long): Long {
+        if (variance <= 0) return 0
+        return Random.nextLong(-variance, variance + 1)
     }
 }

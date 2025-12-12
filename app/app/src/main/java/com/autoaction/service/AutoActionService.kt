@@ -5,16 +5,20 @@ import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
 import com.autoaction.data.local.AppDatabase
 import com.autoaction.data.repository.ScriptRepository
+import com.autoaction.data.settings.GlobalSettings
+import com.autoaction.data.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class AutoActionService : AccessibilityService() {
 
     private lateinit var repository: ScriptRepository
+    private lateinit var settingsRepository: SettingsRepository
     private lateinit var scriptExecutor: ScriptExecutor
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -42,7 +46,10 @@ class AutoActionService : AccessibilityService() {
 
         val database = AppDatabase.getDatabase(this)
         repository = ScriptRepository(database.scriptDao())
-        scriptExecutor = ScriptExecutor(this)
+        settingsRepository = SettingsRepository(this)
+        scriptExecutor = ScriptExecutor(this) {
+            settingsRepository.settings.first()
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {

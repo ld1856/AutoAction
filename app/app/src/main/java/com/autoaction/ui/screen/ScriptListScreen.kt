@@ -31,6 +31,7 @@ import com.autoaction.ui.viewmodel.ScriptViewModel
 @Composable
 fun ScriptListScreen(
     onNavigateToEditor: (String?) -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     viewModel: ScriptViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -73,6 +74,16 @@ fun ScriptListScreen(
                                 expanded = showMenu,
                                 onDismissRequest = { showMenu = false }
                             ) {
+                                DropdownMenuItem(
+                                    text = { Text("App Settings") },
+                                    onClick = {
+                                        showMenu = false
+                                        onNavigateToSettings()
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Settings, "Settings")
+                                    }
+                                )
                                 DropdownMenuItem(
                                     text = { Text("Open Accessibility Settings") },
                                     onClick = {

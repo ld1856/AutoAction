@@ -104,16 +104,66 @@ fun ScriptEditorScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = {
-                actions = actions + Action(
-                    type = ActionType.CLICK,
-                    x = 500,
-                    y = 500,
-                    baseDelay = 50,
-                    desc = "Click ${actions.size + 1}"
-                )
-            }) {
-                Icon(Icons.Default.Add, "Add Action")
+            var showActionMenu by remember { mutableStateOf(false) }
+
+            Box {
+                FloatingActionButton(onClick = { showActionMenu = true }) {
+                    Icon(Icons.Default.Add, "Add Action")
+                }
+
+                DropdownMenu(
+                    expanded = showActionMenu,
+                    onDismissRequest = { showActionMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Add Click") },
+                        onClick = {
+                            showActionMenu = false
+                            actions = actions + Action(
+                                type = ActionType.CLICK,
+                                x = 500,
+                                y = 500,
+                                duration = 50,
+                                desc = "Click ${actions.size + 1}"
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.TouchApp, "Click")
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Add Swipe") },
+                        onClick = {
+                            showActionMenu = false
+                            actions = actions + Action(
+                                type = ActionType.SWIPE,
+                                startX = 500,
+                                startY = 500,
+                                endX = 700,
+                                endY = 700,
+                                duration = 300,
+                                desc = "Swipe ${actions.size + 1}"
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.SwipeRight, "Swipe")
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Add Delay") },
+                        onClick = {
+                            showActionMenu = false
+                            actions = actions + Action(
+                                type = ActionType.DELAY,
+                                duration = 1000,
+                                desc = "Wait ${actions.size + 1}"
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Timer, "Delay")
+                        }
+                    )
+                }
             }
         }
     ) { padding ->
@@ -248,7 +298,7 @@ fun ActionCard(
                     ActionType.CLICK -> {
                         var x by remember { mutableStateOf(action.x.toString()) }
                         var y by remember { mutableStateOf(action.y.toString()) }
-                        var delay by remember { mutableStateOf(action.baseDelay.toString()) }
+                        var duration by remember { mutableStateOf(action.duration.toString()) }
 
                         OutlinedTextField(
                             value = x,
@@ -256,7 +306,7 @@ fun ActionCard(
                                 x = it
                                 onUpdate(action.copy(x = it.toIntOrNull() ?: 0))
                             },
-                            label = { Text("X") },
+                            label = { Text("X Coordinate") },
                             modifier = Modifier.fillMaxWidth()
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -266,17 +316,74 @@ fun ActionCard(
                                 y = it
                                 onUpdate(action.copy(y = it.toIntOrNull() ?: 0))
                             },
-                            label = { Text("Y") },
+                            label = { Text("Y Coordinate") },
                             modifier = Modifier.fillMaxWidth()
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
-                            value = delay,
+                            value = duration,
                             onValueChange = {
-                                delay = it
-                                onUpdate(action.copy(baseDelay = it.toLongOrNull() ?: 0))
+                                duration = it
+                                onUpdate(action.copy(duration = it.toLongOrNull() ?: 50))
                             },
-                            label = { Text("Delay (ms)") },
+                            label = { Text("Press Duration (ms)") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    ActionType.SWIPE -> {
+                        var startX by remember { mutableStateOf(action.startX.toString()) }
+                        var startY by remember { mutableStateOf(action.startY.toString()) }
+                        var endX by remember { mutableStateOf(action.endX.toString()) }
+                        var endY by remember { mutableStateOf(action.endY.toString()) }
+                        var duration by remember { mutableStateOf(action.duration.toString()) }
+
+                        OutlinedTextField(
+                            value = startX,
+                            onValueChange = {
+                                startX = it
+                                onUpdate(action.copy(startX = it.toIntOrNull() ?: 0))
+                            },
+                            label = { Text("Start X") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = startY,
+                            onValueChange = {
+                                startY = it
+                                onUpdate(action.copy(startY = it.toIntOrNull() ?: 0))
+                            },
+                            label = { Text("Start Y") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = endX,
+                            onValueChange = {
+                                endX = it
+                                onUpdate(action.copy(endX = it.toIntOrNull() ?: 0))
+                            },
+                            label = { Text("End X") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = endY,
+                            onValueChange = {
+                                endY = it
+                                onUpdate(action.copy(endY = it.toIntOrNull() ?: 0))
+                            },
+                            label = { Text("End Y") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = duration,
+                            onValueChange = {
+                                duration = it
+                                onUpdate(action.copy(duration = it.toLongOrNull() ?: 300))
+                            },
+                            label = { Text("Swipe Duration (ms)") },
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -288,11 +395,17 @@ fun ActionCard(
                                 duration = it
                                 onUpdate(action.copy(duration = it.toLongOrNull() ?: 0))
                             },
-                            label = { Text("Duration (ms)") },
+                            label = { Text("Wait Duration (ms)") },
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
-                    else -> {}
+                    else -> {
+                        Text(
+                            text = "Editing for ${action.type.name} is not yet supported",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
                 }
             }
         }

@@ -31,9 +31,13 @@ fun ScriptEditorScreen(
     var scriptName by remember { mutableStateOf("") }
     var loopCount by remember { mutableStateOf("1") }
     var actions by remember { mutableStateOf<List<Action>>(emptyList()) }
-    var globalRandomOffset by remember { mutableStateOf("10") }
-    var globalRandomDelay by remember { mutableStateOf("200") }
+    // Initialize with empty strings for null/no value
+    var globalRandomOffset by remember { mutableStateOf("") }
+    var globalRandomDelay by remember { mutableStateOf("") }
     var isEnabled by remember { mutableStateOf(false) }
+
+    // FAB Menu State
+    var showAddMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(scriptId) {
         if (scriptId != null) {
@@ -43,14 +47,17 @@ fun ScriptEditorScreen(
                 scriptName = it.name
                 loopCount = it.loopCount.toString()
                 actions = it.actions
-                globalRandomOffset = it.globalRandomOffset.toString()
-                globalRandomDelay = it.globalRandomDelay.toString()
+                // Convert nullable Int/Long to String, or empty string if null
+                globalRandomOffset = it.globalRandomOffset?.toString() ?: ""
+                globalRandomDelay = it.globalRandomDelay?.toString() ?: ""
                 isEnabled = it.isEnabled
             }
         } else {
             scriptName = "New Script"
             loopCount = "1"
             actions = emptyList()
+            globalRandomOffset = "" // Default to empty string for new scripts
+            globalRandomDelay = "" // Default to empty string for new scripts
         }
     }
 

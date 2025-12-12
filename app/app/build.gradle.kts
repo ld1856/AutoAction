@@ -5,6 +5,10 @@ plugins {
 }
 
 android {
+    signingConfigs {
+        create("release") {
+        }
+    }
     namespace = "com.autoaction"
     compileSdk = 35
 
@@ -20,11 +24,13 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isShrinkResources = true
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            renderscriptOptimLevel = 3
         }
     }
     compileOptions {

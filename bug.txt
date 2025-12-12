@@ -1,0 +1,35 @@
+悬浮窗：
+目前是只有app启动时会有一个悬浮窗，但是点击无效。脚本对应的悬浮窗我没有看到，编辑脚本中也没有相应的操作。
+
+点击录制按钮app会直接退出：
+2025-12-12 15:12:22.404  4813-4813  AndroidRuntime          com.autoaction                       E  FATAL EXCEPTION: main
+                                                                                                    Process: com.autoaction, PID: 4813
+                                                                                                    java.lang.IllegalStateException: ViewTreeLifecycleOwner not found from androidx.compose.ui.platform.ComposeView{5d1cd70 V.E...... ......I. 0,0-0,0}
+                                                                                                    	at androidx.compose.ui.platform.WindowRecomposer_androidKt.createLifecycleAwareWindowRecomposer(WindowRecomposer.android.kt:352)
+                                                                                                    	at androidx.compose.ui.platform.WindowRecomposer_androidKt.createLifecycleAwareWindowRecomposer$default(WindowRecomposer.android.kt:325)
+                                                                                                    	at androidx.compose.ui.platform.WindowRecomposerFactory$Companion.LifecycleAware$lambda$0(WindowRecomposer.android.kt:168)
+                                                                                                    	at androidx.compose.ui.platform.WindowRecomposerFactory$Companion.$r8$lambda$FWAPLXs0qWMqekhMr83xkKattCY(Unknown Source:0)
+                                                                                                    	at androidx.compose.ui.platform.WindowRecomposerFactory$Companion$$ExternalSyntheticLambda0.createRecomposer(D8$$SyntheticClass:0)
+                                                                                                    	at androidx.compose.ui.platform.WindowRecomposerPolicy.createAndInstallWindowRecomposer$ui_release(WindowRecomposer.android.kt:224)
+                                                                                                    	at androidx.compose.ui.platform.WindowRecomposer_androidKt.getWindowRecomposer(WindowRecomposer.android.kt:300)
+                                                                                                    	at androidx.compose.ui.platform.AbstractComposeView.resolveParentCompositionContext(ComposeView.android.kt:244)
+                                                                                                    	at androidx.compose.ui.platform.AbstractComposeView.ensureCompositionCreated(ComposeView.android.kt:251)
+                                                                                                    	at androidx.compose.ui.platform.AbstractComposeView.onAttachedToWindow(ComposeView.android.kt:283)
+                                                                                                    	at android.view.View.dispatchAttachedToWindow(View.java:22860)
+                                                                                                    	at android.view.ViewGroup.dispatchAttachedToWindow(ViewGroup.java:3492)
+                                                                                                    	at android.view.ViewRootImpl.performTraversals(ViewRootImpl.java:3443)
+                                                                                                    	at android.view.ViewRootImpl.doTraversal(ViewRootImpl.java:2917)
+                                                                                                    	at android.view.ViewRootImpl$TraversalRunnable.run(ViewRootImpl.java:10324)
+                                                                                                    	at android.view.Choreographer$CallbackRecord.run(Choreographer.java:1406)
+                                                                                                    	at android.view.Choreographer$CallbackRecord.run(Choreographer.java:1415)
+                                                                                                    	at android.view.Choreographer.doCallbacks(Choreographer.java:1015)
+                                                                                                    	at android.view.Choreographer.doFrame(Choreographer.java:945)
+                                                                                                    	at android.view.Choreographer$FrameDisplayEventReceiver.run(Choreographer.java:1389)
+                                                                                                    	at android.os.Handler.handleCallback(Handler.java:959)
+                                                                                                    	at android.os.Handler.dispatchMessage(Handler.java:100)
+                                                                                                    	at android.os.Looper.loopOnce(Looper.java:232)
+                                                                                                    	at android.os.Looper.loop(Looper.java:317)
+                                                                                                    	at android.app.ActivityThread.main(ActivityThread.java:8705)
+                                                                                                    	at java.lang.reflect.Method.invoke(Native Method)
+                                                                                                    	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)
+                                                                                                    	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)

@@ -3,4 +3,5 @@
     <string name="title_home">Home</string>
     <string name="title_dashboard">Dashboard</string>
     <string name="title_notifications">Notifications</string>
+    <string name="accessibility_service_description">AutoAction Accessibility Service - Enables automated click, swipe, and gesture execution. This service is required for the app to function properly.</string>
 </resources>

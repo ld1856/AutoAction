@@ -1,15 +1,14 @@
 package com.autoaction.service
 
-import android.accessibilityservice.GestureDescription
 import android.annotation.SuppressLint
 import android.content.Intent
-import android.graphics.Path
 import android.graphics.PixelFormat
 import android.os.IBinder
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import com.autoaction.data.local.AppDatabase
@@ -17,6 +16,8 @@ import com.autoaction.data.model.Action
 import com.autoaction.data.model.ActionType
 import com.autoaction.data.model.Script
 import com.autoaction.data.repository.ScriptRepository
+import com.autoaction.data.settings.GlobalSettings
+import com.autoaction.data.settings.SettingsRepository
 import com.autoaction.ui.floating.RecordingOverlayContent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,38 +25,47 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.util.UUID
-import kotlin.math.abs
 import kotlin.math.sqrt
 
 class RecordingService : OverlayService() {
 
     private lateinit var windowManager: WindowManager
     private lateinit var repository: ScriptRepository
+    private lateinit var settingsRepository: SettingsRepository
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    private var overlayView: View? = null
+    private var inputOverlayView: View? = null
     private val recordedActions = mutableListOf<Action>()
     private var lastActionEndTime = 0L
     private var recordingStartTime = 0L
-
-    private var downX = 0f
-    private var downY = 0f
-    private var downTime = 0L
-    private var isGestureInProgress = false
-
-    private val actionCountState = mutableStateOf(0)
 
     companion object {
         private const val LONG_PRESS_THRESHOLD_MS = 500L
         private const val MOVEMENT_THRESHOLD_PX = 40f
         private const val MIN_DELAY_MS = 50L
+
+        private var _instance: RecordingService? = null
+        private val _actionCount = mutableStateOf(0)
+        private val _isRecording = mutableStateOf(false)
+
+        val actionCountState: androidx.compose.runtime.State<Int> = _actionCount
+        val isRecordingState: androidx.compose.runtime.State<Boolean> = _isRecording
+
+        fun getInstance(): RecordingService? = _instance
+        fun getActionCount(): Int = _actionCount.value
+        fun isRecording(): Boolean = _isRecording.value
     }
+
+    private val actionCountState = _actionCount
 
     override fun onCreate() {
         super.onCreate()
+        _instance = this
+        _isRecording.value = true
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val database = AppDatabase.getDatabase(this)
         repository = ScriptRepository(database.scriptDao())
+        settingsRepository = SettingsRepository(this)
 
         createRecordingOverlay()
         recordingStartTime = System.currentTimeMillis()
@@ -64,7 +74,7 @@ class RecordingService : OverlayService() {
 
     @SuppressLint("ClickableViewAccessibility")
     private fun createRecordingOverlay() {
-        val params = WindowManager.LayoutParams(
+        val inputParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
@@ -74,61 +84,45 @@ class RecordingService : OverlayService() {
             gravity = Gravity.TOP or Gravity.START
         }
 
-        overlayView = ComposeView(this).apply {
+        inputOverlayView = ComposeView(this).apply {
             attachLifecycle(this)
             setContent {
+                val settings by settingsRepository.settings.collectAsState(initial = GlobalSettings())
                 RecordingOverlayContent(
                     actionCount = actionCountState.value,
                     onStop = { stopRecording() },
-                    onSave = { saveRecording() }
+                    onSave = { saveRecording() },
+                    onGesture = { downX, downY, upX, upY, duration ->
+                        handleGesture(downX, downY, upX, upY, duration)
+                    },
+                    barPosition = settings.recordingBarPosition,
+                    customX = settings.recordingBarCustomX,
+                    customY = settings.recordingBarCustomY
                 )
-            }
-            setOnTouchListener { _, event ->
-                handleTouchEvent(event)
-                true
             }
         }
 
-        windowManager.addView(overlayView, params)
+        windowManager.addView(inputOverlayView, inputParams)
+
+        // 录制时隐藏原始控制条
+        FloatingWindowService.getInstance()?.hideControlBar()
     }
 
-    private fun handleTouchEvent(event: MotionEvent) {
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                downX = event.rawX
-                downY = event.rawY
-                downTime = System.currentTimeMillis()
-                isGestureInProgress = true
+    private fun handleGesture(downX: Float, downY: Float, upX: Float, upY: Float, duration: Long) {
+        val currentTime = System.currentTimeMillis()
+        val distance = calculateDistance(downX, downY, upX, upY)
 
-                dispatchRealtimeClick(downX, downY, 5)
-            }
-            MotionEvent.ACTION_MOVE -> {
-            }
-            MotionEvent.ACTION_UP -> {
-                if (!isGestureInProgress) return
+        addDelayIfNeeded(currentTime - duration)
 
-                val upX = event.rawX
-                val upY = event.rawY
-                val upTime = System.currentTimeMillis()
-                val duration = upTime - downTime
-                val distance = calculateDistance(downX, downY, upX, upY)
+        val action = recognizeGesture(
+            downX, downY, upX, upY,
+            duration, distance
+        )
 
-                addDelayIfNeeded(downTime)
+        recordedActions.add(action)
+        lastActionEndTime = currentTime
 
-                val action = recognizeGesture(
-                    downX, downY, upX, upY,
-                    duration, distance
-                )
-
-                recordedActions.add(action)
-                lastActionEndTime = upTime
-                isGestureInProgress = false
-
-                updateActionCount()
-
-                dispatchPassthroughFullGesture(action, downX, downY, upX, upY, duration)
-            }
-        }
+        updateActionCount()
     }
 
     private fun addDelayIfNeeded(currentActionStartTime: Long) {
@@ -189,71 +183,15 @@ class RecordingService : OverlayService() {
         return sqrt(dx * dx + dy * dy)
     }
 
-    private fun dispatchRealtimeClick(x: Float, y: Float, duration: Long) {
-        scope.launch(Dispatchers.IO) {
-            try {
-                val service = AutoActionService.getInstance() ?: return@launch
-                val path = Path().apply { moveTo(x, y) }
-                val gesture = GestureDescription.Builder()
-                    .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
-                    .build()
-                service.dispatchGesture(gesture, null, null)
-            } catch (e: Exception) {
-            }
-        }
-    }
-
-    private fun dispatchPassthroughFullGesture(
-        action: Action,
-        startX: Float,
-        startY: Float,
-        endX: Float,
-        endY: Float,
-        duration: Long
-    ) {
-        scope.launch(Dispatchers.IO) {
-            try {
-                val service = AutoActionService.getInstance() ?: return@launch
-
-                val gesture = when (action.type) {
-                    ActionType.LONG_PRESS -> {
-                        val path = Path().apply {
-                            moveTo(startX, startY)
-                        }
-                        GestureDescription.Builder()
-                            .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
-                            .build()
-                    }
-                    ActionType.SWIPE -> {
-                        val path = Path().apply {
-                            moveTo(startX, startY)
-                            lineTo(endX, endY)
-                        }
-                        val swipeDuration = duration.coerceIn(100, 2000)
-                        GestureDescription.Builder()
-                            .addStroke(GestureDescription.StrokeDescription(path, 0, swipeDuration))
-                            .build()
-                    }
-                    else -> null
-                }
-
-                gesture?.let {
-                    service.dispatchGesture(it, null, null)
-                }
-            } catch (e: Exception) {
-            }
-        }
-    }
-
     private fun updateActionCount() {
         actionCountState.value = recordedActions.count { it.type != ActionType.DELAY }
     }
 
-    private fun stopRecording() {
+    fun stopRecording() {
         stopSelf()
     }
 
-    private fun saveRecording() {
+    fun saveRecording() {
         if (recordedActions.isEmpty()) {
             stopSelf()
             return
@@ -277,7 +215,14 @@ class RecordingService : OverlayService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        overlayView?.let { windowManager.removeView(it) }
+        _instance = null
+        _isRecording.value = false
+        _actionCount.value = 0
+        inputOverlayView?.let { windowManager.removeView(it) }
+
+        // 录制结束时恢复显示原始控制条
+        FloatingWindowService.getInstance()?.showControlBar()
+
         scope.cancel()
     }
 }

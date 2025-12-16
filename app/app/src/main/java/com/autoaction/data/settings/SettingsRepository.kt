@@ -22,6 +22,9 @@ class SettingsRepository(private val context: Context) {
         private val HAPTIC_FEEDBACK_ENABLED = booleanPreferencesKey("haptic_feedback_enabled")
         private val CONTROL_BAR_ALPHA = floatPreferencesKey("control_bar_alpha")
         private val SHORTCUT_ALPHA = floatPreferencesKey("shortcut_alpha")
+        private val RECORDING_BAR_POSITION = intPreferencesKey("recording_bar_position")
+        private val RECORDING_BAR_CUSTOM_X = intPreferencesKey("recording_bar_custom_x")
+        private val RECORDING_BAR_CUSTOM_Y = intPreferencesKey("recording_bar_custom_y")
     }
 
     val settings: Flow<GlobalSettings> = context.dataStore.data.map { preferences ->
@@ -32,7 +35,10 @@ class SettingsRepository(private val context: Context) {
             delayVariance = preferences[DELAY_VARIANCE] ?: 100,
             hapticFeedbackEnabled = preferences[HAPTIC_FEEDBACK_ENABLED] ?: true,
             controlBarAlpha = preferences[CONTROL_BAR_ALPHA] ?: 0.9f,
-            shortcutAlpha = preferences[SHORTCUT_ALPHA] ?: 0.8f
+            shortcutAlpha = preferences[SHORTCUT_ALPHA] ?: 0.8f,
+            recordingBarPosition = RecordingBarPosition.fromOrdinal(preferences[RECORDING_BAR_POSITION] ?: 0),
+            recordingBarCustomX = preferences[RECORDING_BAR_CUSTOM_X] ?: 8,
+            recordingBarCustomY = preferences[RECORDING_BAR_CUSTOM_Y] ?: 48
         )
     }
 
@@ -75,6 +81,19 @@ class SettingsRepository(private val context: Context) {
     suspend fun updateShortcutAlpha(alpha: Float) {
         context.dataStore.edit { preferences ->
             preferences[SHORTCUT_ALPHA] = alpha.coerceIn(0.1f, 1.0f)
+        }
+    }
+
+    suspend fun updateRecordingBarPosition(position: RecordingBarPosition) {
+        context.dataStore.edit { preferences ->
+            preferences[RECORDING_BAR_POSITION] = position.ordinal
+        }
+    }
+
+    suspend fun updateRecordingBarCustomPosition(x: Int, y: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[RECORDING_BAR_CUSTOM_X] = x
+            preferences[RECORDING_BAR_CUSTOM_Y] = y
         }
     }
 }

@@ -269,12 +269,13 @@ fun ActionCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "${index + 1}. ${action.type.name}",
+                        text = "${index + 1}. ${if (action.type == ActionType.LONG_PRESS) "CLICK" else action.type.name}",
                         style = MaterialTheme.typography.titleSmall
                     )
                     Text(
                         text = when (action.type) {
                             ActionType.CLICK -> "(${action.x}, ${action.y})"
+                            ActionType.LONG_PRESS -> "(${action.x}, ${action.y}) ${action.duration}ms"
                             ActionType.SWIPE -> "(${action.startX}, ${action.startY}) → (${action.endX}, ${action.endY})"
                             ActionType.DELAY -> "${action.duration}ms"
                             else -> ""
@@ -391,6 +392,41 @@ fun ActionCard(
                                 onUpdate(action.copy(duration = it.toLongOrNull() ?: 300))
                             },
                             label = { Text("Swipe Duration (ms)") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    ActionType.LONG_PRESS -> {
+                        var x by remember { mutableStateOf(action.x.toString()) }
+                        var y by remember { mutableStateOf(action.y.toString()) }
+                        var duration by remember { mutableStateOf(action.duration.toString()) }
+
+                        OutlinedTextField(
+                            value = x,
+                            onValueChange = {
+                                x = it
+                                onUpdate(action.copy(x = it.toIntOrNull() ?: 0))
+                            },
+                            label = { Text("X Coordinate") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = y,
+                            onValueChange = {
+                                y = it
+                                onUpdate(action.copy(y = it.toIntOrNull() ?: 0))
+                            },
+                            label = { Text("Y Coordinate") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = duration,
+                            onValueChange = {
+                                duration = it
+                                onUpdate(action.copy(duration = it.toLongOrNull() ?: 500))
+                            },
+                            label = { Text("Long Press Duration (ms)") },
                             modifier = Modifier.fillMaxWidth()
                         )
                     }

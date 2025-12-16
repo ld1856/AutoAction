@@ -1,6 +1,8 @@
 package com.autoaction.ui.screen
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -9,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.autoaction.data.settings.RecordingBarPosition
 import com.autoaction.data.settings.SettingsRepository
 import kotlinx.coroutines.launch
 
@@ -38,7 +41,8 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
@@ -166,7 +170,82 @@ fun SettingsScreen(
                 steps = 17
             )
 
-            Spacer(modifier = Modifier.weight(1f))
+            HorizontalDivider()
+
+            Text(
+                text = "Recording Settings",
+                style = MaterialTheme.typography.titleLarge
+            )
+
+            var showPositionMenu by remember { mutableStateOf(false) }
+
+            Text(
+                text = "Recording Bar Position",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Box {
+                OutlinedButton(
+                    onClick = { showPositionMenu = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(settings.recordingBarPosition.displayName)
+                }
+
+                DropdownMenu(
+                    expanded = showPositionMenu,
+                    onDismissRequest = { showPositionMenu = false }
+                ) {
+                    RecordingBarPosition.entries.forEach { position ->
+                        DropdownMenuItem(
+                            text = { Text(position.displayName) },
+                            onClick = {
+                                scope.launch {
+                                    repository.updateRecordingBarPosition(position)
+                                }
+                                showPositionMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            if (settings.recordingBarPosition == RecordingBarPosition.CUSTOM) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    var customX by remember { mutableStateOf(settings.recordingBarCustomX.toString()) }
+                    var customY by remember { mutableStateOf(settings.recordingBarCustomY.toString()) }
+
+                    OutlinedTextField(
+                        value = customX,
+                        onValueChange = {
+                            customX = it
+                            val x = it.toIntOrNull() ?: 8
+                            scope.launch {
+                                repository.updateRecordingBarCustomPosition(x, settings.recordingBarCustomY)
+                            }
+                        },
+                        label = { Text("X (dp)") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = customY,
+                        onValueChange = {
+                            customY = it
+                            val y = it.toIntOrNull() ?: 48
+                            scope.launch {
+                                repository.updateRecordingBarCustomPosition(settings.recordingBarCustomX, y)
+                            }
+                        },
+                        label = { Text("Y (dp)") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth(),

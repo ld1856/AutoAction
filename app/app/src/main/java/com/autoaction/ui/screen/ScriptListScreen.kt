@@ -127,6 +127,9 @@ fun ScriptListScreen(
                             context.startActivity(intent)
                         } else if (!floatingRunning) {
                             context.startService(Intent(context, FloatingWindowService::class.java))
+                        } else {
+                            // Toggle control bar visibility when service is running
+                            FloatingWindowService.getInstance()?.toggleControlBarFromApp()
                         }
                     },
                     containerColor = MaterialTheme.colorScheme.secondary
